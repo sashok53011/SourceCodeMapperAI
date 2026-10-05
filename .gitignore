@@ -1,0 +1,25 @@
+# Gradle / Android build output
+.gradle/
+build/
+app/build/
+captures/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# Machine-specific
+local.properties
+.idea/
+*.iml
+.DS_Store
+
+# Keystores / secrets
+*.jks
+*.keystore
+*.p12
+*.pfx
+
+# Logs
+*.log
