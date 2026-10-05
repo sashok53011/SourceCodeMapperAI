@@ -1,68 +1,71 @@
 # Source Code Mapper AI
 
-Android-приложение: открывает локальный репозиторий или клонирует его с GitHub,
-строит «полную картину» кода и формирует интерактивный HTML-отчёт из 4 столбцов
-со сворачиваемыми блоками.
+[English](README.md) | [Русский](README.ru.md) | [Deutsch](README.de.md)
 
-## Что делает
+[![Android CI](https://github.com/sashok53011/SourceCodeMapperAI/actions/workflows/android.yml/badge.svg)](https://github.com/sashok53011/SourceCodeMapperAI/actions/workflows/android.yml)
 
-1. **Открыть локальный репозиторий** — системный выбор папки (SAF, доступ только на чтение).
-2. **Клонировать с GitHub** — `owner/repo` или полный URL; по умолчанию git clone (JGit),
-   при ошибке — автоматический откат на скачивание ZIP (`codeload.github.com`).
-3. **Построить отчёт** — гибридный конвейер:
-   - на устройстве: обход файлов → статический разбор (файлы, классы, функции, методы,
-     свойства, UI-элементы, триггеры, ресурсы манифеста, маршруты) → эвристики безопасности;
-   - через AI: столбец 2 (описание) и столбец 4 (оценка), плюс обзор архитектуры;
-   - генерация HTML и показ в WebView с экспортом/шерингом.
-4. **Express-отчёт** — прогон одного и того же кода по всем настроенным моделям по очереди,
-   затем сравнение результатов в **супер-отчёт** (согласие/расхождения моделей, мнения по
-   каждому элементу, AI-разбор разногласий).
-5. **AI-провайдеры** — добавление, редактирование и удаление OpenAI-совместимых провайдеров,
-   возврат к набору по умолчанию.
+An Android app that opens a local repository or clones one from GitHub, builds a
+"full picture" of the code and produces an interactive **4-column HTML report** with
+collapsible blocks.
 
-### Правила анализа
+## What it does
 
-- **README, `*.md`, `*.txt`, лицензии, changelog и прочая документация не анализируются** —
-  учитывается только реальный исполняемый код.
-- **Комментарии в коде игнорируются**: элементы строятся только по значимым строкам,
-  комментарии и пустые строки в отчёт не попадают; при этом каждая строка кода находит место.
-- Если AI не уверен в назначении участка, он обязан пометить строку уровнем уверенности
-  (`Подтверждено / Вероятно / Не подтверждено`) и указать краткое обоснование или причину,
-  по которой подтвердить не удалось (столбец 4).
+1. **Open a local repository** — system folder picker (SAF, read-only access).
+2. **Clone from GitHub** — `owner/repo` or a full URL; `git clone` via JGit by default,
+   with an automatic fallback to ZIP download (`codeload.github.com`) if it fails.
+3. **Build the report** — a hybrid pipeline:
+   - on device: file walk → static analysis (files, classes, functions, methods,
+     properties, UI elements, triggers, manifest components, routes) → security heuristics;
+   - via AI: column 2 (description) and column 4 (assessment), plus an architecture overview;
+   - HTML generation and display in a WebView with export/share.
+4. **Express report** — runs the same code through every configured model in turn,
+   then compares the results into a **super-report** (model agreement/disagreement,
+   per-element opinions, AI reconciliation of conflicts).
+5. **AI providers** — add, edit and delete OpenAI-compatible providers, restore defaults.
 
-## Отчёт: 4 столбца
+### Analysis rules
 
-| Колонка | Содержимое |
+- **README, `*.md`, `*.txt`, licences, changelogs and other documentation are not analysed** —
+  only real, executing code is taken into account.
+- **Code comments are ignored**: elements are built from meaningful lines only; comments and
+  blank lines never appear in the report, while every line of code still finds its place.
+- If the AI is unsure what a fragment does, it must mark the row with a confidence level
+  (`Verified / Likely / Unverified`) and give a short justification or the reason why it
+  could not be confirmed (column 4).
+
+## Report: 4 columns
+
+| Column | Content |
 |---|---|
-| 1. Наименование / имя / обозначение | Все элементы: файлы, классы, функции, методы, свойства, UI-элементы, триггеры и пр. Имя + краткое пояснение. В свёрнутом виде видна только эта суммаризация. |
-| 2. Способ / технология / метод / тип / класс | Подробное описание (AI + статика). |
-| 3. Конкретные строки | Номера строк и полное содержимое. Каждая строка файла попадает либо в свой элемент, либо в блок «Прочие строки» — покрытие 100%. |
-| 4. Оценка кода | `Уязвимость / Проблема / Предупреждение / Норма / Лучшая практика` + пояснение. База — статические правила, уточняется AI. |
+| 1. Name / designation | Every element: files, classes, functions, methods, properties, UI elements, triggers, etc. Name + short explanation. When collapsed, only this summary is visible. |
+| 2. Method / technology / type / class | Detailed description (AI + static analysis). |
+| 3. Concrete lines | Line numbers and full content. Every line of a file lands either in its own element or in the "Other lines" block — 100% coverage. |
+| 4. Code assessment | `Vulnerability / Problem / Warning / OK / Best practice` + explanation. Baseline from static rules, refined by AI. |
 
-Всё свёрнуто по умолчанию (`<details>`): группа файла → строка элемента → 4-колоночная
-сетка. Любой текст, не вмещающийся в четверть ширины экрана (ячейка ~25%), получает
-кнопку `▸ / ▾`. Есть поиск, фильтр по оценке, «Развернуть всё / Свернуть всё».
+Everything is collapsed by default (`<details>`): file group → element row → 4-column grid.
+Any text that does not fit within a quarter of the screen width (a ~25% cell) gets a
+`▸ / ▾` toggle. There is search, a verdict filter, and "Expand all / Collapse all".
 
-## Языки интерфейса и отчёта
+## Interface and report languages
 
-**Английский — основной язык и язык по умолчанию.** Русский и немецкий поддерживаются
-полностью: интерфейс, HTML-отчёт (заголовки, столбцы, уровни, супер-отчёт), статические
-описания элементов, сообщения и названия провайдеров. Выбор языка влияет и на язык ответов
-модели. Технический журнал анализа остаётся на английском (отладочная информация).
+**English is the primary language and the default.** Russian and German are fully supported:
+the UI, the HTML report (headings, columns, levels, super-report), static element
+descriptions, messages, and provider names. The selected language also drives the language
+of the model's answers. The technical analysis journal stays in English (debug information).
 
-## Провайдеры ИИ (Настройки)
+## AI providers (Settings)
 
-| Провайдер | Base URL | Модель по умолчанию | Ключ |
+| Provider | Base URL | Default model | Key |
 |---|---|---|---|
-| Основной (OpenAI-совместимый) | `https://llm.devhorizon.online/v1` | `gemma4-12b-qat-uncensored-hauhaucs-balanced` | не требуется |
-| Ollama Cloud | `https://ollama.com/v1` | задаётся пользователем | API-ключ или OAuth device flow |
+| Primary (OpenAI-compatible) | `https://llm.devhorizon.online/v1` | `gemma4-12b-qat-uncensored-hauhaucs-balanced` | none required |
+| Ollama Cloud | `https://ollama.com/v1` | user-defined | API key or OAuth device flow |
 | OpenCode Go | `https://opencode.ai/zen/go/v1` | `space-bunny-free` | `sk-...` |
 | OpenCode Zen | `https://opencode.ai/zen/v1` | `big-pickle` | `sk-...` |
 
-Кнопка «Проверить соединение» дергает `/models`. Ollama OAuth: приложение открывает
-`ollama.com/connect?...` и опрашивает API до появления ключа.
+The "Test connection" button calls `/models`. For Ollama OAuth the app opens
+`ollama.com/connect?...` and polls the API until the key becomes active.
 
-## Сборка
+## Build
 
 ```powershell
 $env:JAVA_HOME="C:\Program Files\Microsoft\jdk-17.0.15.6-hotspot"
@@ -72,38 +75,45 @@ $env:ANDROID_HOME="C:\Android\Sdk"
 
 APK: `app/build/outputs/apk/debug/app-debug.apk`
 
-Установка на эмулятор:
+Install on an emulator:
 
 ```powershell
 adb -s emulator-5554 install -r -t app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## Стек
+## Stack
 
-Kotlin (встроенный в AGP 9.1.1), Jetpack Compose (BOM 2024.09.00, Material3),
+Kotlin (built into AGP 9.1.1), Jetpack Compose (BOM 2024.09.00, Material3),
 coroutines, kotlinx-serialization-json, OkHttp, JGit, DocumentFile,
 Gradle 9.3.1, compileSdk 36 / minSdk 26.
 
-## Структура исходников
+## Source layout
 
 ```
 app/src/main/java/online/devhorizon/sourcecodemapper/
   MainActivity.kt, MainViewModel.kt
   model/Models.kt
-  i18n/Strings.kt                 # RU/DE/EN
-  data/Settings.kt                # провайдеры, настройки, кэш
-  data/RepoAccess.kt              # SAF + JGit + ZIP-фолбэк
+  i18n/Strings.kt                 # EN / RU / DE
+  data/Settings.kt                # providers, settings, cache
+  data/RepoAccess.kt              # SAF + JGit + ZIP fallback
   analysis/Language.kt
-  analysis/StaticIndexer.kt       # извлечение элементов + покрытие строк
-  analysis/SecurityRules.kt       # правила столбца 4
-  analysis/Enricher.kt            # AI для столбцов 2 и 4
-  ai/AiClient.kt                  # 4 провайдера + Ollama OAuth
-  report/HtmlReport.kt            # HTML: 4 колонки, сворачивание, поиск
-  ui/                             # Compose-экраны
+  analysis/Comments.kt            # comment/blank-line filter
+  analysis/StaticIndexer.kt       # element extraction + line coverage
+  analysis/SecurityRules.kt       # column 4 rules
+  analysis/Enricher.kt            # AI for columns 2 and 4
+  analysis/ExpressMerger.kt       # multi-model super-report
+  ai/AiClient.kt                  # 4 providers + Ollama OAuth
+  report/HtmlReport.kt            # HTML: 4 columns, collapsing, search
+  ui/                             # Compose screens
 ```
 
-## Ограничения
+## Limitations
 
-- Лимиты по умолчанию: 2000 файлов, 320 КБ на файл, 25 МБ текста (настраиваются).
-- Скорость AI зависит от выбранной модели; результаты кэшируются по хэшу файла.
-- Для приватных репозиториев нужен GitHub-токен.
+- Default limits: 2000 files, 320 KB per file, 25 MB of text (configurable).
+- AI speed depends on the selected model; results are cached by file hash.
+- Private repositories require a GitHub token.
+
+## CI
+
+GitHub Actions builds the debug APK on every push to `main` and on pull requests
+(`.github/workflows/android.yml`). Pushing a `v*` tag attaches the APK to a GitHub Release.
