@@ -6,10 +6,26 @@ import online.devhorizon.sourcecodemapper.model.RepoFile
 /**
  * Heuristic security / quality rules. They provide the deterministic baseline for
  * column 4 ("Code assessment"); the AI refines and explains them.
+ *
+ * The rule pack contains the very patterns it searches for, so the file carries the
+ * self-exclusion marker below and is never scanned itself: a scanner that reports its
+ * own rule definitions is noise, not a finding.
  */
+// scm-scan:ignore-file
 object SecurityRules {
 
     private const val D = "\$"
+
+    /** A file carrying this marker is never scanned (self-exclusion for this rule pack). */
+    private const val FILE_MARKER = "scm-scan:ignore-file"
+
+    /** A line carrying this marker is skipped. */
+    private const val LINE_MARKER = "scm-scan:ignore"
+
+    /** URIs that are not network endpoints: XML namespaces and published specifications. */
+    private val trustedUri = Regex(
+        """(?i)(schemas\.android\.com|w3\.org|apache\.org|xml\.org|ns\.adobe\.com|purl\.org|example\.com)"""
+    )
 
     data class Rule(
         val id: String,
@@ -189,13 +205,19 @@ object SecurityRules {
         val out = ArrayList<Finding>()
         for (f in files) {
             val text = f.text ?: continue
+            if (text.contains(FILE_MARKER)) continue
             val lines = text.split('\n')
             val infos = Comments.analyze(text, f.language)
+            // A launcher activity must be exported on Android 12+, so that is by design, not a finding.
+            val launcherManifest = text.contains("android.intent.category.LAUNCHER")
             for (i in lines.indices) {
                 if (!infos[i].isCode) continue
                 val line = lines[i]
                 if (line.length > 4000) continue
+                if (line.contains(LINE_MARKER)) continue
                 for (r in rules) {
+                    if (r.id == "exported" && launcherManifest) continue
+                    if (r.id == "http_url" && (line.contains("xmlns") || trustedUri.containsMatchIn(line))) continue
                     if (r.regex.containsMatchIn(line)) {
                         out.add(Finding(f.path, i + 1, r.id, r.level, r.text(lang)))
                     }

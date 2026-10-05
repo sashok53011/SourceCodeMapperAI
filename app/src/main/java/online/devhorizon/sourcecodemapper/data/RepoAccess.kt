@@ -44,7 +44,7 @@ class RepoAccess(private val context: Context) {
                     walk(child, "$prefix$childName/")
                 } else {
                     val rel = "$prefix$childName"
-                    if (Language.isDoc(rel)) continue
+                    if (Language.isDoc(rel) || Language.isIgnoredFile(rel)) continue
                     val size = child.length()
                     if (size > limits.maxFileBytes) { log("skip (big): $rel"); continue }
                     if (Language.isBinaryExt(rel)) continue
@@ -158,7 +158,7 @@ class RepoAccess(private val context: Context) {
                     walk(child, "$prefix${child.name}/")
                 } else {
                     val rel = "$prefix${child.name}"
-                    if (Language.isDoc(rel)) continue
+                    if (Language.isDoc(rel) || Language.isIgnoredFile(rel)) continue
                     if (child.length() > limits.maxFileBytes) continue
                     if (Language.isBinaryExt(rel)) continue
                     val text = runCatching { child.readText(Charsets.UTF_8) }.getOrNull() ?: continue

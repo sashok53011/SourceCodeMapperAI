@@ -66,6 +66,11 @@ object Language {
 
     fun isBinaryExt(path: String): Boolean = ext(path) in binaryExt
 
+    /** Build tooling, not application code: the Gradle wrapper scripts carry no app logic. */
+    private val ignoredFiles = setOf("gradlew", "gradlew.bat")
+
+    fun isIgnoredFile(path: String): Boolean = path.substringAfterLast('/') in ignoredFiles
+
     fun isCode(language: String): Boolean = language in codeLanguages
 
     /**
