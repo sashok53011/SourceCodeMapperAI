@@ -1,5 +1,6 @@
 package online.devhorizon.sourcecodemapper.analysis
 
+import online.devhorizon.sourcecodemapper.i18n.Strings
 import online.devhorizon.sourcecodemapper.model.CodeElement
 import online.devhorizon.sourcecodemapper.model.LineRef
 import online.devhorizon.sourcecodemapper.model.RepoFile
@@ -8,8 +9,9 @@ import online.devhorizon.sourcecodemapper.model.RepoFile
  * Deterministic, on-device extraction of code elements: files, classes, functions,
  * methods, properties, UI elements, triggers, manifest components, resources, etc.
  *
- * Comments and blank lines are ignored (the user asked to consider only real,
- * executing code). Every code line of a file ends up covered by exactly one element.
+ * Comments and blank lines are ignored (only real, executing code is considered).
+ * Every code line of a file ends up covered by exactly one element.
+ * All human-readable descriptions are localized through [Strings].
  */
 object StaticIndexer {
 
@@ -22,14 +24,17 @@ object StaticIndexer {
         "match", "print", "println", "assert", "lock", "using", "foreach", "yield"
     )
 
-    fun index(files: List<RepoFile>): Map<String, List<CodeElement>> {
+    private fun st(lang: String, key: String, vararg args: Any?): String =
+        if (args.isEmpty()) Strings.get(lang, key) else Strings.tr(lang, key, *args)
+
+    fun index(files: List<RepoFile>, lang: String): Map<String, List<CodeElement>> {
         val result = LinkedHashMap<String, List<CodeElement>>()
         for (f in files) {
             val text = f.text ?: continue
             val elements = when {
-                Language.isCode(f.language) -> indexCode(f, text)
-                f.language == "XML" -> indexXml(f, text)
-                f.language == "HTML" -> indexHtml(f, text)
+                Language.isCode(f.language) -> indexCode(f, text, lang)
+                f.language == "XML" -> indexXml(f, text, lang)
+                f.language == "HTML" -> indexHtml(f, text, lang)
                 else -> emptyList()
             }
             result[f.path] = elements
@@ -39,10 +44,10 @@ object StaticIndexer {
 
     // ------------------------------------------------------------------ code
 
-    private fun indexCode(file: RepoFile, text: String): List<CodeElement> {
+    private fun indexCode(file: RepoFile, text: String, lang: String): List<CodeElement> {
         val lines = text.split('\n')
-        val lang = file.language
-        val infos = Comments.analyze(text, lang)
+        val pl = file.language
+        val infos = Comments.analyze(text, pl)
         val hits = ArrayList<CodeElement>()
 
         for (i in lines.indices) {
@@ -50,155 +55,147 @@ object StaticIndexer {
             val line = lines[i]
             val ln = i + 1
 
-            when (lang) {
+            when (pl) {
                 "Kotlin", "Java", "Scala" -> {
                     classRe.find(line)?.let {
-                        hits.add(mk(it.groupValues[2], kindFor(it.groupValues[1]), file, ln, line, "объявление «${it.groupValues[1]}» в $lang"))
+                        hits.add(mk(it.groupValues[2], kindFor(it.groupValues[1]), file, ln, line, st(lang, "sd_decl_in", it.groupValues[1].trim(), pl)))
                     }
                     lifecycleRe.find(line)?.let {
-                        hits.add(mk(it.groupValues[1], "lifecycle", file, ln, line, "lifecycle-колбэк Android"))
+                        hits.add(mk(it.groupValues[1], "lifecycle", file, ln, line, st(lang, "sd_lifecycle")))
                     }
                     funRe.find(line)?.let {
                         val isComposable = i > 0 && lines[i - 1].contains("@Composable")
                         val kind = if (isComposable) "composable" else "function"
-                        val extra = if (isComposable) "@Composable-функция (Jetpack Compose)" else "функция/метод $lang"
-                        hits.add(mk(it.groupValues[1], kind, file, ln, line, extra))
+                        hits.add(mk(it.groupValues[1], kind, file, ln, line, if (isComposable) st(lang, "sd_composable") else st(lang, "sd_function_in", pl)))
                     }
                     propRe.find(line)?.let {
-                        hits.add(mk(it.groupValues[2], if (line.contains("const ")) "constant" else "property", file, ln, line, "поле/свойство"))
+                        val isConst = line.contains("const ")
+                        hits.add(mk(it.groupValues[2], if (isConst) "constant" else "property", file, ln, line, st(lang, if (isConst) "sd_constant" else "sd_property")))
                     }
                     listenerRe.find(line)?.let {
-                        hits.add(mk(it.groupValues[1], "trigger", file, ln, line, "обработчик/подписка"))
+                        hits.add(mk(it.groupValues[1], "trigger", file, ln, line, st(lang, "sd_trigger_listener")))
                     }
                     importRe.find(line)?.let {
-                        hits.add(mk(it.groupValues[1].substringAfterLast('.'), "import", file, ln, line, "зависимость: ${it.groupValues[1]}"))
+                        hits.add(mk(it.groupValues[1].substringAfterLast('.'), "import", file, ln, line, st(lang, "sd_import", it.groupValues[1])))
                     }
                 }
                 "JavaScript", "JavaScript (JSX)", "TypeScript", "TypeScript (TSX)", "Vue", "Svelte" -> {
                     classReJs.find(line)?.let {
-                        hits.add(mk(it.groupValues[1], "class", file, ln, line, "класс JavaScript/TypeScript"))
+                        hits.add(mk(it.groupValues[1], "class", file, ln, line, st(lang, "sd_class_js")))
                     }
                     fnReJs.find(line)?.let {
                         val cap = it.groupValues[1].firstOrNull()?.isUpperCase() == true
-                        hits.add(mk(it.groupValues[1], if (cap) "composable" else "function", file, ln, line, if (cap) "компонент (React/Vue)" else "функция JS/TS"))
+                        hits.add(mk(it.groupValues[1], if (cap) "composable" else "function", file, ln, line, if (cap) st(lang, "sd_component") else st(lang, "sd_function_js")))
                     }
                     arrowReJs.find(line)?.let {
-                        hits.add(mk(it.groupValues[1], "function", file, ln, line, "стрелочная функция/колбэк"))
+                        hits.add(mk(it.groupValues[1], "function", file, ln, line, st(lang, "sd_arrow")))
                     }
                     eventReJs.find(line)?.let {
-                        hits.add(mk(it.groupValues[1], "trigger", file, ln, line, "обработчик события addEventListener"))
+                        hits.add(mk(it.groupValues[1], "trigger", file, ln, line, st(lang, "sd_event_listener")))
                     }
                     domIdRe.find(line)?.let {
-                        hits.add(mk(it.groupValues[1], "ui", file, ln, line, "UI-элемент DOM (getElementById)"))
+                        hits.add(mk(it.groupValues[1], "ui", file, ln, line, st(lang, "sd_dom_id")))
                     }
                     queryRe.find(line)?.let {
-                        hits.add(mk(it.groupValues[1], "ui", file, ln, line, "UI-селектор DOM"))
+                        hits.add(mk(it.groupValues[1], "ui", file, ln, line, st(lang, "sd_dom_query")))
                     }
                     methodReJs.find(line)?.let {
                         val n = it.groupValues[1]
-                        if (n !in KW && n.length > 1) hits.add(mk(n, "method", file, ln, line, "метод объекта/класса"))
+                        if (n !in KW && n.length > 1) hits.add(mk(n, "method", file, ln, line, st(lang, "sd_method_js")))
                     }
                 }
                 "Python" -> {
-                    defRe.find(line)?.let {
-                        hits.add(mk(it.groupValues[1], "function", file, ln, line, "функция Python"))
-                    }
-                    classRePy.find(line)?.let {
-                        hits.add(mk(it.groupValues[1], "class", file, ln, line, "класс Python"))
-                    }
-                    decoratorRe.find(line)?.let {
-                        hits.add(mk(it.groupValues[1], "trigger", file, ln, line, "декоратор/обработчик"))
-                    }
-                    routeRe.find(line)?.let {
-                        hits.add(mk(it.groupValues[2], "route", file, ln, line, "HTTP-маршрут ${it.groupValues[1].uppercase()}"))
-                    }
+                    defRe.find(line)?.let { hits.add(mk(it.groupValues[1], "function", file, ln, line, st(lang, "sd_function_py"))) }
+                    classRePy.find(line)?.let { hits.add(mk(it.groupValues[1], "class", file, ln, line, st(lang, "sd_class_py"))) }
+                    decoratorRe.find(line)?.let { hits.add(mk(it.groupValues[1], "trigger", file, ln, line, st(lang, "sd_decorator"))) }
+                    routeRe.find(line)?.let { hits.add(mk(it.groupValues[2], "route", file, ln, line, st(lang, "sd_route", it.groupValues[1].uppercase()))) }
                 }
                 "Go" -> {
-                    goFunc.find(line)?.let { hits.add(mk(it.groupValues[1], "function", file, ln, line, "функция Go")) }
-                    goType.find(line)?.let { hits.add(mk(it.groupValues[1], kindFor(it.groupValues[2]), file, ln, line, "тип Go: ${it.groupValues[2]}")) }
+                    goFunc.find(line)?.let { hits.add(mk(it.groupValues[1], "function", file, ln, line, st(lang, "sd_function_go"))) }
+                    goType.find(line)?.let { hits.add(mk(it.groupValues[1], kindFor(it.groupValues[2]), file, ln, line, st(lang, "sd_type_go", it.groupValues[2]))) }
                 }
                 "Rust" -> {
-                    rustFn.find(line)?.let { hits.add(mk(it.groupValues[1], "function", file, ln, line, "функция Rust")) }
-                    rustType.find(line)?.let { hits.add(mk(it.groupValues[2], kindFor(it.groupValues[1]), file, ln, line, "тип Rust: ${it.groupValues[1]}")) }
+                    rustFn.find(line)?.let { hits.add(mk(it.groupValues[1], "function", file, ln, line, st(lang, "sd_function_rs"))) }
+                    rustType.find(line)?.let { hits.add(mk(it.groupValues[2], kindFor(it.groupValues[1]), file, ln, line, st(lang, "sd_type_rs", it.groupValues[1]))) }
                 }
                 "PHP" -> {
-                    phpClass.find(line)?.let { hits.add(mk(it.groupValues[2], kindFor(it.groupValues[1]), file, ln, line, "тип PHP")) }
-                    phpFn.find(line)?.let { hits.add(mk(it.groupValues[1], "function", file, ln, line, "функция PHP")) }
+                    phpClass.find(line)?.let { hits.add(mk(it.groupValues[2], kindFor(it.groupValues[1]), file, ln, line, st(lang, "sd_type_php"))) }
+                    phpFn.find(line)?.let { hits.add(mk(it.groupValues[1], "function", file, ln, line, st(lang, "sd_function_php"))) }
                 }
                 "Ruby" -> {
-                    rbDef.find(line)?.let { hits.add(mk(it.groupValues[1], "function", file, ln, line, "метод Ruby")) }
-                    rbClass.find(line)?.let { hits.add(mk(it.groupValues[2], kindFor(it.groupValues[1]), file, ln, line, "тип Ruby")) }
+                    rbDef.find(line)?.let { hits.add(mk(it.groupValues[1], "function", file, ln, line, st(lang, "sd_method_rb"))) }
+                    rbClass.find(line)?.let { hits.add(mk(it.groupValues[2], kindFor(it.groupValues[1]), file, ln, line, st(lang, "sd_type_rb"))) }
                 }
                 "Swift" -> {
-                    swiftFn.find(line)?.let { hits.add(mk(it.groupValues[1], "function", file, ln, line, "функция Swift")) }
-                    swiftType.find(line)?.let { hits.add(mk(it.groupValues[2], kindFor(it.groupValues[1]), file, ln, line, "тип Swift")) }
+                    swiftFn.find(line)?.let { hits.add(mk(it.groupValues[1], "function", file, ln, line, st(lang, "sd_function_swift"))) }
+                    swiftType.find(line)?.let { hits.add(mk(it.groupValues[2], kindFor(it.groupValues[1]), file, ln, line, st(lang, "sd_type_swift"))) }
                 }
                 "Dart" -> {
-                    dartClass.find(line)?.let { hits.add(mk(it.groupValues[1], "class", file, ln, line, "класс Dart/Flutter")) }
+                    dartClass.find(line)?.let { hits.add(mk(it.groupValues[1], "class", file, ln, line, st(lang, "sd_class_dart"))) }
                     dartFn.find(line)?.let {
                         val n = it.groupValues[1]
-                        if (n !in KW) hits.add(mk(n, "method", file, ln, line, "метод/функция Dart"))
+                        if (n !in KW) hits.add(mk(n, "method", file, ln, line, st(lang, "sd_method_dart")))
                     }
                 }
                 "Shell" -> {
-                    shFn.find(line)?.let { hits.add(mk(it.groupValues[1], "function", file, ln, line, "функция shell")) }
+                    shFn.find(line)?.let { hits.add(mk(it.groupValues[1], "function", file, ln, line, st(lang, "sd_function_sh"))) }
                 }
                 "SQL" -> {
-                    sqlRe.find(line)?.let { hits.add(mk(it.groupValues[2], "object", file, ln, line, "SQL ${it.groupValues[1].uppercase()}")) }
+                    sqlRe.find(line)?.let { hits.add(mk(it.groupValues[2], "object", file, ln, line, st(lang, "sd_sql", it.groupValues[1].uppercase()))) }
                 }
                 "C", "C++", "C++ header", "C/C++ header", "C#" -> {
-                    cClassRe.find(line)?.let { hits.add(mk(it.groupValues[2], kindFor(it.groupValues[1]), file, ln, line, "тип $lang")) }
+                    cClassRe.find(line)?.let { hits.add(mk(it.groupValues[2], kindFor(it.groupValues[1]), file, ln, line, st(lang, "sd_type_c", pl))) }
                     cFuncRe.find(line)?.let {
                         val n = it.groupValues[1]
-                        if (n !in KW) hits.add(mk(n, "function", file, ln, line, "функция/метод $lang"))
+                        if (n !in KW) hits.add(mk(n, "function", file, ln, line, st(lang, "sd_function_c", pl)))
                     }
                 }
             }
         }
 
         val unique = hits.distinctBy { it.name to it.startLine }
-        return withCoverage(lines, unique, file, infos)
+        return withCoverage(lines, unique, file, infos, lang)
     }
 
     // ------------------------------------------------------------------ XML (Android-ish)
 
-    private fun indexXml(file: RepoFile, text: String): List<CodeElement> {
+    private fun indexXml(file: RepoFile, text: String, lang: String): List<CodeElement> {
         val lines = text.split('\n')
         val infos = Comments.analyze(text, file.language)
         val hits = ArrayList<CodeElement>()
         for (i in lines.indices) {
             if (!infos[i].isCode) continue
             val line = lines[i]; val ln = i + 1
-            idRe.find(line)?.let { hits.add(mk(it.groupValues[1], "ui", file, ln, line, "UI-элемент: android:id")) }
-            onClickRe.find(line)?.let { hits.add(mk(it.groupValues[1], "trigger", file, ln, line, "обработчик android:onClick")) }
-            usesPermission.find(line)?.let { hits.add(mk(it.groupValues[1], "permission", file, ln, line, "разрешение из манифеста")) }
-            manifestComp.find(line)?.let { hits.add(mk(it.groupValues[2], "component", file, ln, line, "компонент манифеста <${it.groupValues[1]}>")) }
-            stringRes.find(line)?.let { hits.add(mk(it.groupValues[1], "resource", file, ln, line, "строковый ресурс")) }
-            otherRes.find(line)?.let { hits.add(mk(it.groupValues[2], "resource", file, ln, line, "ресурс <${it.groupValues[1]}>")) }
+            idRe.find(line)?.let { hits.add(mk(it.groupValues[1], "ui", file, ln, line, st(lang, "sd_android_id"))) }
+            onClickRe.find(line)?.let { hits.add(mk(it.groupValues[1], "trigger", file, ln, line, st(lang, "sd_android_onclick"))) }
+            usesPermission.find(line)?.let { hits.add(mk(it.groupValues[1], "permission", file, ln, line, st(lang, "sd_permission"))) }
+            manifestComp.find(line)?.let { hits.add(mk(it.groupValues[2], "component", file, ln, line, st(lang, "sd_manifest_component", it.groupValues[1]))) }
+            stringRes.find(line)?.let { hits.add(mk(it.groupValues[1], "resource", file, ln, line, st(lang, "sd_string_res"))) }
+            otherRes.find(line)?.let { hits.add(mk(it.groupValues[2], "resource", file, ln, line, st(lang, "sd_resource", it.groupValues[1]))) }
         }
         val unique = hits.distinctBy { it.name to it.startLine }
-        return withCoverage(lines, unique, file, infos)
+        return withCoverage(lines, unique, file, infos, lang)
     }
 
-    private fun indexHtml(file: RepoFile, text: String): List<CodeElement> {
+    private fun indexHtml(file: RepoFile, text: String, lang: String): List<CodeElement> {
         val lines = text.split('\n')
         val infos = Comments.analyze(text, file.language)
         val hits = ArrayList<CodeElement>()
         for (i in lines.indices) {
             if (!infos[i].isCode) continue
             val line = lines[i]; val ln = i + 1
-            htmlId.find(line)?.let { hits.add(mk(it.groupValues[1], "ui", file, ln, line, "UI-элемент HTML (id/class)")) }
-            domIdRe.find(line)?.let { hits.add(mk(it.groupValues[1], "ui", file, ln, line, "UI-элемент DOM")) }
-            eventReJs.find(line)?.let { hits.add(mk(it.groupValues[1], "trigger", file, ln, line, "обработчик события")) }
-            onclickAttr.find(line)?.let { hits.add(mk(it.groupValues[1], "trigger", file, ln, line, "inline-обработчик onclick")) }
+            htmlId.find(line)?.let { hits.add(mk(it.groupValues[1], "ui", file, ln, line, st(lang, "sd_html_ui"))) }
+            domIdRe.find(line)?.let { hits.add(mk(it.groupValues[1], "ui", file, ln, line, st(lang, "sd_dom_id"))) }
+            eventReJs.find(line)?.let { hits.add(mk(it.groupValues[1], "trigger", file, ln, line, st(lang, "sd_event_listener"))) }
+            onclickAttr.find(line)?.let { hits.add(mk(it.groupValues[1], "trigger", file, ln, line, st(lang, "sd_onclick_inline"))) }
             htmlTag.find(line)?.let {
                 val tag = it.groupValues[1].lowercase()
                 if (tag in setOf("script", "style", "form", "input", "button", "a", "canvas", "video", "audio", "select", "textarea", "table"))
-                    hits.add(mk("<$tag>", "tag", file, ln, line, "HTML-тег"))
+                    hits.add(mk("<$tag>", "tag", file, ln, line, st(lang, "sd_html_tag")))
             }
         }
         val unique = hits.distinctBy { it.name to it.startLine }
-        return withCoverage(lines, unique, file, infos)
+        return withCoverage(lines, unique, file, infos, lang)
     }
 
     // ------------------------------------------------------------------ helpers
@@ -219,7 +216,8 @@ object StaticIndexer {
         lines: List<String>,
         elements: List<CodeElement>,
         file: RepoFile,
-        infos: List<Comments.LineInfo>
+        infos: List<Comments.LineInfo>,
+        lang: String
     ): List<CodeElement> {
         val codeLines = infos.filter { it.isCode }.map { it.line }
         val codeSet = codeLines.toHashSet()
@@ -249,7 +247,7 @@ object StaticIndexer {
                 while (j < codeLines.size && !covered[codeLines[j]]) {
                     group.add(codeLines[j]); j++
                 }
-                items.add(l to raw(file, lines, group))
+                items.add(l to raw(file, lines, group, lang))
                 cursor = j
             } else cursor++
         }
@@ -258,20 +256,21 @@ object StaticIndexer {
         return items.map { it.second }
     }
 
-    private fun raw(file: RepoFile, lines: List<String>, lineNumbers: List<Int>): CodeElement {
+    private fun raw(file: RepoFile, lines: List<String>, lineNumbers: List<Int>, lang: String): CodeElement {
         if (lineNumbers.isEmpty()) {
-            return CodeElement("${file.name}: пусто", "raw", file.path, 1, 1, "", "", emptyList())
+            return CodeElement("${file.name}", "raw", file.path, 1, 1, "", st(lang, "sd_raw"), emptyList())
         }
         val from = lineNumbers.first()
         val to = lineNumbers.last()
+        val linesWord = Strings.get(lang, "lines").lowercase()
         return CodeElement(
-            name = "${file.name}: строки $from–$to",
+            name = "${file.name}: $linesWord $from–$to",
             kind = "raw",
             filePath = file.path,
             startLine = from,
             endLine = to,
             signature = lines.getOrNull(from - 1)?.trim()?.take(300) ?: "",
-            staticDetail = "неклассифицированные строки реального кода (без комментариев и пустых строк)",
+            staticDetail = st(lang, "sd_raw"),
             snippets = lineNumbers.take(MAX_SNIPPET).map { LineRef(it, lines.getOrElse(it - 1) { "" }) }
         )
     }

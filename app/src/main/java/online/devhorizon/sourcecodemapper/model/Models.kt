@@ -19,7 +19,7 @@ data class ProviderConfig(
 data class AppSettings(
     val activeProviderId: String = "devhorizon",
     val providers: List<ProviderConfig> = emptyList(),
-    val language: String = "ru",
+    val language: String = "en",
     val maxFiles: Int = 2000,
     val maxFileKb: Int = 320,
     val maxTotalMb: Int = 25,

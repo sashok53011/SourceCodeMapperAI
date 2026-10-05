@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import online.devhorizon.sourcecodemapper.MainViewModel
 import online.devhorizon.sourcecodemapper.UiState
+import online.devhorizon.sourcecodemapper.i18n.Strings
 import online.devhorizon.sourcecodemapper.model.ProviderConfig
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -54,7 +55,7 @@ fun SettingsScreen(state: UiState, vm: MainViewModel) {
                         FilterChip(
                             selected = p.id == settings.activeProviderId,
                             onClick = { vm.setActiveProvider(p.id) },
-                            label = { Text(p.title.substringBefore(" (")) }
+                            label = { Text(Strings.providerTitle(lang, p.id, p.title).substringBefore(" (")) }
                         )
                     }
                 }
@@ -68,7 +69,7 @@ fun SettingsScreen(state: UiState, vm: MainViewModel) {
         if (active != null) {
             item {
                 Panel {
-                    SectionTitle(active.title)
+                    SectionTitle(Strings.providerTitle(lang, active.id, active.title))
                     LabeledField(txt(lang, "base_url"), active.baseUrl, { vm.updateProvider(active.copy(baseUrl = it)) })
                     LabeledField(txt(lang, "protocol"), active.protocol, { vm.updateProvider(active.copy(protocol = it)) }, placeholder = "openai | ollama")
                     LabeledField(txt(lang, "model"), active.model, { vm.updateProvider(active.copy(model = it)) })

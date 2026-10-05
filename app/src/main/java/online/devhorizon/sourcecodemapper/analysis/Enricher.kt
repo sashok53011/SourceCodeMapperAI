@@ -6,6 +6,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import online.devhorizon.sourcecodemapper.ai.AiClient
 import online.devhorizon.sourcecodemapper.data.CacheStore
+import online.devhorizon.sourcecodemapper.i18n.Strings
 import online.devhorizon.sourcecodemapper.model.AiElementAnswer
 import online.devhorizon.sourcecodemapper.model.AppSettings
 import online.devhorizon.sourcecodemapper.model.CodeElement
@@ -25,18 +26,18 @@ class Enricher(
     private val batchSize = 35
     private val promptVersion = "v2"
 
-    fun baseline(file: RepoFile, elements: List<CodeElement>, findings: Map<String, Finding>): FileReport {
+    fun baseline(file: RepoFile, elements: List<CodeElement>, findings: Map<String, Finding>, lang: String): FileReport {
         val fileRow = ReportRow(
             name = file.path,
-            summary = "файл · ${file.language} · ${file.lineCount} строк",
-            detail = "Файл репозитория. Язык: ${file.language}. Размер: ${file.sizeBytes} байт. Строк: ${file.lineCount}.",
+            summary = Strings.tr(lang, "row_file_summary", file.language, file.lineCount),
+            detail = Strings.tr(lang, "row_file_detail", file.language, file.sizeBytes, file.lineCount),
             lines = emptyList(),
             level = "ok",
             note = "",
             kind = "file",
             filePath = file.path,
             confidence = "verified",
-            evidence = listOf("файл прочитан: ${file.path}")
+            evidence = listOf(Strings.tr(lang, "ev_file", file.path))
         )
 
         val rows = ArrayList<ReportRow>()
@@ -46,15 +47,15 @@ class Enricher(
             val level = found.minByOrNull { rank(it.level) }?.level ?: "ok"
             val note = found.minByOrNull { rank(it.level) }?.message ?: ""
             val evidence = if (found.isNotEmpty()) {
-                found.map { "${it.filePath}:${it.line} → правило «${it.ruleId}» (${it.level})" }
+                found.map { Strings.tr(lang, "ev_rule", it.filePath, it.line, it.ruleId, it.level) }
             } else {
-                listOf("элемент найден статическим разбором: ${e.filePath}:${e.startLine}–${e.endLine} (${e.kind})")
+                listOf(Strings.tr(lang, "ev_static", e.filePath, e.startLine, e.endLine, Strings.kindLabel(lang, e.kind)))
             }
             rows.add(
                 ReportRow(
                     name = e.name,
                     summary = e.staticDetail,
-                    detail = buildDetail(e),
+                    detail = buildDetail(e, lang),
                     lines = e.snippets,
                     level = level,
                     note = note,
@@ -68,12 +69,14 @@ class Enricher(
         return FileReport(file.path, file.language, "", rows)
     }
 
-    private fun buildDetail(e: CodeElement): String {
-        val sb = StringBuilder()
-        sb.append("Тип элемента: ${e.kind}. Язык: ${e.filePath.substringAfterLast('.', "")}.")
-        if (e.signature.isNotBlank()) sb.append(" Объявление: ${e.signature.take(200)}")
-        sb.append(" Диапазон строк: ${e.startLine}–${e.endLine}.")
-        return sb.toString()
+    private fun buildDetail(e: CodeElement, lang: String): String {
+        val ext = e.filePath.substringAfterLast('.', "")
+        return Strings.tr(
+            lang, "row_detail",
+            Strings.kindLabel(lang, e.kind), ext,
+            if (e.signature.isNotBlank()) e.signature.take(200) else "—",
+            e.startLine, e.endLine
+        )
     }
 
     private fun findingsFor(e: CodeElement, findings: Map<String, Finding>): List<Finding> =
@@ -92,7 +95,7 @@ class Enricher(
         lang: String,
         log: (String) -> Unit
     ): FileReport {
-        val base = baseline(file, elements, findings)
+        val base = baseline(file, elements, findings, lang)
         if (!settings.enableAi || provider.model.isBlank()) return base
 
         val cacheKey = CacheStore.hash(file.path, file.text.orEmpty(), provider.id, provider.model, lang, promptVersion)
@@ -191,7 +194,7 @@ Return ONLY the JSON array of objects.
                 level = normalizeLevel(a.level, row.level),
                 note = a.note.ifBlank { row.note },
                 confidence = normalizeConfidence(a.confidence, row.confidence),
-                evidence = if (a.evidence.isBlank()) row.evidence else row.evidence + "AI: ${a.evidence}"
+                evidence = if (a.evidence.isBlank()) row.evidence else row.evidence + Strings.tr(lang, "ev_ai_prefix", a.evidence)
             )
         }
         return base.copy(rows = rows)

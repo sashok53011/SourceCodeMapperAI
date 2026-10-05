@@ -157,7 +157,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun cloneGithub(url: String, branch: String, token: String, useJgit: Boolean) {
-        if (url.isBlank()) { setMessage("Enter a GitHub URL"); return }
+        if (url.isBlank()) { setMessage(Strings.tr(_state.value.settings.language, "msg_enter_url")); return }
         val s = _state.value.settings
         val limits = RepoAccess.Limits(s.maxFiles, s.maxFileKb * 1024, s.maxTotalMb * 1024 * 1024)
         _state.update { it.copy(busy = true, message = null, progress = Progress(phase = "phase_ingest", running = true)) }
@@ -185,7 +185,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun fail(t: Throwable) {
-        _state.update { it.copy(busy = false, progress = Progress(), message = "Error: ${t.message}") }
+        _state.update { it.copy(busy = false, progress = Progress(), message = Strings.tr(it.settings.language, "msg_error", t.message)) }
     }
 
     private fun computeStats(files: List<RepoFile>): RepoStats {
@@ -217,7 +217,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     // ------------------------------------------------------------------ single-provider analysis
 
     fun startAnalysis() {
-        if (_state.value.files.isEmpty()) { setMessage("Open a repository first"); return }
+        if (_state.value.files.isEmpty()) { setMessage(Strings.get(_state.value.settings.language, "msg_open_repo")); return }
         if (analysisJob?.isActive == true) return
         val s = _state.value.settings
         val provider = activeProvider()
@@ -228,7 +228,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 val lang = s.language
                 setProgress("phase_static", 0, _state.value.files.size, true)
                 val files = _state.value.files
-                val elements = withContext(Dispatchers.Default) { StaticIndexer.index(files) }
+                val elements = withContext(Dispatchers.Default) { StaticIndexer.index(files, lang) }
                 log("static: ${elements.values.sumOf { it.size }} elements (comments and docs excluded)")
 
                 val findings = withContext(Dispatchers.Default) { SecurityRules.scan(files, lang) }
@@ -244,7 +244,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 log("overview synthesized (${overview.length} chars)")
 
                 setProgress("phase_render", 0, 1, true)
-                val bundle = buildBundle(reports, overview, findings, lang, superReport = "", providers = listOf(provider.title))
+                val bundle = buildBundle(reports, overview, findings, lang, superReport = "", providers = listOf(Strings.providerTitle(lang, provider.id, provider.title)))
                 val html = HtmlReport.build(bundle)
                 val file = writeReport(html)
                 _state.update {
@@ -263,21 +263,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     // ------------------------------------------------------------------ express analysis (all providers)
 
     fun startExpressAnalysis() {
-        if (_state.value.files.isEmpty()) { setMessage("Open a repository first"); return }
+        if (_state.value.files.isEmpty()) { setMessage(Strings.get(_state.value.settings.language, "msg_open_repo")); return }
         if (analysisJob?.isActive == true) return
         val s = _state.value.settings
         // Only providers that can actually answer: a model plus a key, or the keyless default.
         val providers = s.providers.filter {
             it.model.isNotBlank() && (it.apiKey.isNotBlank() || it.id == "devhorizon")
         }
-        if (providers.isEmpty()) { setMessage("Configure at least one provider with a model and a key"); return }
+        if (providers.isEmpty()) { setMessage(Strings.get(s.language, "msg_configure_provider")); return }
 
         _state.update { it.copy(busy = true) }
         analysisJob = viewModelScope.launch {
             try {
                 val lang = s.language
                 val files = _state.value.files
-                val elements = withContext(Dispatchers.Default) { StaticIndexer.index(files) }
+                val elements = withContext(Dispatchers.Default) { StaticIndexer.index(files, lang) }
                 val findings = withContext(Dispatchers.Default) { SecurityRules.scan(files, lang) }
                 val findingsIndex = SecurityRules.index(files, lang)
                 _state.update { it.copy(findings = findings) }
@@ -293,18 +293,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }
 
                 setProgress("phase_synth", 0, 1, true)
-                val merged = ExpressMerger.merge(perProvider)
+                val merged = ExpressMerger.merge(perProvider, lang)
                 val deterministic = ExpressMerger.buildSuperSummary(perProvider, lang)
                 val aiComparison = compareReports(perProvider, providers.first(), lang)
                 val superReport = buildString {
                     append(deterministic)
-                    if (aiComparison.isNotBlank()) { append("\n\n## Сравнение моделей (AI)\n\n"); append(aiComparison) }
+                    if (aiComparison.isNotBlank()) {
+                        append("\n\n").append(Strings.get(lang, "super_ai_section")).append("\n\n").append(aiComparison)
+                    }
                 }
                 val overview = synthesize(merged, providers.first(), lang)
                 log("express merged: ${merged.sumOf { it.rows.size }} rows, super-report ${superReport.length} chars")
 
                 setProgress("phase_render", 0, 1, true)
-                val bundle = buildBundle(merged, overview, findings, lang, superReport, providers.map { it.title })
+                val bundle = buildBundle(merged, overview, findings, lang, superReport, providers.map { Strings.providerTitle(lang, it.id, it.title) })
                 val html = HtmlReport.build(bundle)
                 val file = writeReport(html)
                 _state.update {
@@ -340,7 +342,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                             enricher.enrich(f, elements[f.path].orEmpty(), findingsIndex, lang) { log(it) }
                         }.getOrElse { t ->
                             log("enrich failed ${f.path}: ${t.message}")
-                            enricher.baseline(f, elements[f.path].orEmpty(), findingsIndex)
+                            enricher.baseline(f, elements[f.path].orEmpty(), findingsIndex, lang)
                         }
                         synchronized(this@MainViewModel) {
                             done++
@@ -381,11 +383,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (disagreements.isBlank()) return ""
 
         val prompt = """
-Модели проанализировали один и тот же код, но разошлись в оценках.
-Разбери расхождения и выдай итоговый вердикт по каждому пункту в $langName, в Markdown.
-Для каждого пункта: какой уровень верен и почему, коротко и по делу. Если не хватает данных — так и скажи.
+Several models analysed the same code but disagreed on some verdicts.
+Reconcile the disagreements and produce a final verdict for each item in $langName, as Markdown.
+For each item: which level is correct and why, briefly and concretely. If data is insufficient, say so.
 
-Расхождения:
+Disagreements:
 $disagreements
 """
         return runCatching {

@@ -1,8 +1,9 @@
 package online.devhorizon.sourcecodemapper.i18n
 
 /**
- * Tiny localization layer: English is the complete base, Russian and German are overrides.
- * Supported by the user request: RU / DE / EN.
+ * Localization layer. English is the complete base and the fallback;
+ * Russian and German are full overrides. User-visible text only —
+ * technical logs/journal stay in English on purpose.
  */
 object Strings {
 
@@ -14,6 +15,29 @@ object Strings {
             else -> en[key] ?: key
         }
     }
+
+    /** Substitutes "%s" placeholders in order. */
+    fun tr(lang: String, key: String, vararg args: Any?): String {
+        var s = get(lang, key)
+        for (a in args) s = s.replaceFirst("%s", a?.toString() ?: "")
+        return s
+    }
+
+    fun kindLabel(lang: String, kind: String): String {
+        val k = get(lang, "kind_$kind")
+        return if (k == "kind_$kind") kind else k
+    }
+
+    /** Localized display name of a provider; unknown/custom providers keep their stored title. */
+    fun providerTitle(lang: String, id: String, fallback: String): String = when (id) {
+        "devhorizon" -> get(lang, "provider_devhorizon")
+        "ollama" -> get(lang, "provider_ollama")
+        "opencode-go" -> get(lang, "provider_opencode_go")
+        "opencode-zen" -> get(lang, "provider_opencode_zen")
+        else -> fallback
+    }
+
+    // ------------------------------------------------------------------ English (base)
 
     val en: Map<String, String> = mapOf(
         "app_name" to "Source Code Mapper AI",
@@ -138,7 +162,8 @@ object Strings {
         "kind_composable" to "Composable UI",
 
         "super_report" to "Super-report (model comparison)",
-        "evidence" to "Evidence / verification",
+        "super_ai_section" to "## Model comparison (AI)",
+        "evidence" to "Proof",
         "models_opinions" to "Model opinions",
         "confidence" to "Confidence",
         "conf_verified" to "Verified",
@@ -152,17 +177,93 @@ object Strings {
         "restore_defaults" to "Restore defaults",
         "new_provider" to "New OpenAI-compatible provider",
         "providers" to "AI providers",
-        "exclude_docs" to "Ignore README / *.md / *.txt and code comments"
+        "exclude_docs" to "Ignore README / *.md / *.txt and code comments",
+
+        "provider_devhorizon" to "DevHorizon (OpenAI-compatible, no key)",
+        "provider_ollama" to "Ollama Cloud (key or OAuth)",
+        "provider_opencode_go" to "OpenCode Go (sk- key)",
+        "provider_opencode_zen" to "OpenCode Zen (sk- key)",
+
+        "sd_decl_in" to "declaration of «%s» in %s",
+        "sd_lifecycle" to "Android lifecycle callback",
+        "sd_composable" to "@Composable function (Jetpack Compose)",
+        "sd_function_in" to "function/method %s",
+        "sd_property" to "field/property",
+        "sd_constant" to "constant",
+        "sd_trigger_listener" to "handler/subscription",
+        "sd_import" to "dependency: %s",
+        "sd_class_js" to "JavaScript/TypeScript class",
+        "sd_component" to "component (React/Vue)",
+        "sd_function_js" to "JS/TS function",
+        "sd_arrow" to "arrow function/callback",
+        "sd_event_listener" to "event handler addEventListener",
+        "sd_dom_id" to "DOM UI element (getElementById)",
+        "sd_dom_query" to "DOM selector",
+        "sd_method_js" to "object/class method",
+        "sd_function_py" to "Python function",
+        "sd_class_py" to "Python class",
+        "sd_decorator" to "decorator/handler",
+        "sd_route" to "HTTP route %s",
+        "sd_function_go" to "Go function",
+        "sd_type_go" to "Go type: %s",
+        "sd_function_rs" to "Rust function",
+        "sd_type_rs" to "Rust type: %s",
+        "sd_type_php" to "PHP type",
+        "sd_function_php" to "PHP function",
+        "sd_method_rb" to "Ruby method",
+        "sd_type_rb" to "Ruby type",
+        "sd_function_swift" to "Swift function",
+        "sd_type_swift" to "Swift type",
+        "sd_class_dart" to "Dart/Flutter class",
+        "sd_method_dart" to "Dart method/function",
+        "sd_function_sh" to "shell function",
+        "sd_sql" to "SQL %s",
+        "sd_type_c" to "type %s",
+        "sd_function_c" to "function/method %s",
+        "sd_android_id" to "UI element: android:id",
+        "sd_android_onclick" to "handler android:onClick",
+        "sd_permission" to "permission from the manifest",
+        "sd_manifest_component" to "manifest component <%s>",
+        "sd_string_res" to "string resource",
+        "sd_resource" to "resource <%s>",
+        "sd_html_ui" to "HTML UI element (id/class)",
+        "sd_onclick_inline" to "inline handler onclick",
+        "sd_html_tag" to "HTML tag",
+        "sd_raw" to "unclassified real-code lines (no comments or blank lines)",
+
+        "row_file_summary" to "file · %s · %s lines",
+        "row_file_detail" to "Repository file. Language: %s. Size: %s bytes. Lines: %s.",
+        "row_detail" to "Element type: %s. Language: %s. Declaration: %s Line range: %s–%s.",
+
+        "ev_file" to "file read: %s",
+        "ev_rule" to "%s:%s → rule «%s» (%s)",
+        "ev_static" to "element found by static analysis: %s:%s–%s (%s)",
+        "ev_ai_prefix" to "AI: %s",
+
+        "super_title" to "## Super-report: comparison of %s models",
+        "super_models" to "Models: %s",
+        "super_compared" to "- Elements compared: %s",
+        "super_agree" to "- Full model agreement: %s (%s%%)",
+        "super_conflicts" to "- Disagreements: %s",
+        "super_profile" to "### Verdict profile by model",
+        "super_note" to "> Elements with disagreement are marked with the «Conflicting» level; details are in column 4.",
+        "merge_disagreement" to "Disagreements: %s",
+        "merge_opinions" to "Model opinions:\n%s",
+
+        "msg_open_repo" to "Open a repository first",
+        "msg_enter_url" to "Enter a GitHub URL",
+        "msg_configure_provider" to "Configure at least one provider with a model and a key",
+        "msg_error" to "Error: %s"
     )
 
+    // ------------------------------------------------------------------ Russian
+
     val ru: Map<String, String> = mapOf(
-        "app_name" to "Source Code Mapper AI",
         "tab_home" to "Домой",
         "tab_repo" to "Репозиторий",
         "tab_report" to "Отчёт",
         "tab_settings" to "Настройки",
 
-        "home_title" to "Source Code Mapper AI",
         "home_subtitle" to "Откройте локальный репозиторий или клонируйте с GitHub, затем постройте полную карту кода в 4 столбца.",
         "open_local" to "Открыть локальный репозиторий",
         "open_local_desc" to "Выберите папку через системный выбор (доступ только на чтение).",
@@ -177,9 +278,6 @@ object Strings {
         "or" to "ИЛИ",
 
         "lang_label" to "Язык отчёта",
-        "lang_ru" to "Русский",
-        "lang_de" to "Deutsch",
-        "lang_en" to "English",
 
         "repo_title" to "Картина репозитория",
         "files" to "Файлы",
@@ -278,7 +376,8 @@ object Strings {
         "kind_composable" to "Composable UI",
 
         "super_report" to "Супер-отчёт (сравнение моделей)",
-        "evidence" to "Доказательства / проверка",
+        "super_ai_section" to "## Сравнение моделей (AI)",
+        "evidence" to "Доказательство",
         "models_opinions" to "Мнения моделей",
         "confidence" to "Уверенность",
         "conf_verified" to "Подтверждено",
@@ -292,17 +391,93 @@ object Strings {
         "restore_defaults" to "Вернуть по умолчанию",
         "new_provider" to "Новый OpenAI-совместимый провайдер",
         "providers" to "AI-провайдеры",
-        "exclude_docs" to "Игнорировать README / *.md / *.txt и комментарии в коде"
+        "exclude_docs" to "Игнорировать README / *.md / *.txt и комментарии в коде",
+
+        "provider_devhorizon" to "DevHorizon (OpenAI-совместимый, без ключа)",
+        "provider_ollama" to "Ollama Cloud (ключ или OAuth)",
+        "provider_opencode_go" to "OpenCode Go (ключ sk-)",
+        "provider_opencode_zen" to "OpenCode Zen (ключ sk-)",
+
+        "sd_decl_in" to "объявление «%s» в %s",
+        "sd_lifecycle" to "lifecycle-колбэк Android",
+        "sd_composable" to "@Composable-функция (Jetpack Compose)",
+        "sd_function_in" to "функция/метод %s",
+        "sd_property" to "поле/свойство",
+        "sd_constant" to "константа",
+        "sd_trigger_listener" to "обработчик/подписка",
+        "sd_import" to "зависимость: %s",
+        "sd_class_js" to "класс JavaScript/TypeScript",
+        "sd_component" to "компонент (React/Vue)",
+        "sd_function_js" to "функция JS/TS",
+        "sd_arrow" to "стрелочная функция/колбэк",
+        "sd_event_listener" to "обработчик события addEventListener",
+        "sd_dom_id" to "UI-элемент DOM (getElementById)",
+        "sd_dom_query" to "UI-селектор DOM",
+        "sd_method_js" to "метод объекта/класса",
+        "sd_function_py" to "функция Python",
+        "sd_class_py" to "класс Python",
+        "sd_decorator" to "декоратор/обработчик",
+        "sd_route" to "HTTP-маршрут %s",
+        "sd_function_go" to "функция Go",
+        "sd_type_go" to "тип Go: %s",
+        "sd_function_rs" to "функция Rust",
+        "sd_type_rs" to "тип Rust: %s",
+        "sd_type_php" to "тип PHP",
+        "sd_function_php" to "функция PHP",
+        "sd_method_rb" to "метод Ruby",
+        "sd_type_rb" to "тип Ruby",
+        "sd_function_swift" to "функция Swift",
+        "sd_type_swift" to "тип Swift",
+        "sd_class_dart" to "класс Dart/Flutter",
+        "sd_method_dart" to "метод/функция Dart",
+        "sd_function_sh" to "функция shell",
+        "sd_sql" to "SQL %s",
+        "sd_type_c" to "тип %s",
+        "sd_function_c" to "функция/метод %s",
+        "sd_android_id" to "UI-элемент: android:id",
+        "sd_android_onclick" to "обработчик android:onClick",
+        "sd_permission" to "разрешение из манифеста",
+        "sd_manifest_component" to "компонент манифеста <%s>",
+        "sd_string_res" to "строковый ресурс",
+        "sd_resource" to "ресурс <%s>",
+        "sd_html_ui" to "UI-элемент HTML (id/class)",
+        "sd_onclick_inline" to "inline-обработчик onclick",
+        "sd_html_tag" to "HTML-тег",
+        "sd_raw" to "неклассифицированные строки реального кода (без комментариев и пустых строк)",
+
+        "row_file_summary" to "файл · %s · %s строк",
+        "row_file_detail" to "Файл репозитория. Язык: %s. Размер: %s байт. Строк: %s.",
+        "row_detail" to "Тип элемента: %s. Язык: %s. Объявление: %s Диапазон строк: %s–%s.",
+
+        "ev_file" to "файл прочитан: %s",
+        "ev_rule" to "%s:%s → правило «%s» (%s)",
+        "ev_static" to "элемент найден статическим разбором: %s:%s–%s (%s)",
+        "ev_ai_prefix" to "AI: %s",
+
+        "super_title" to "## Супер-отчёт: сравнение %s моделей",
+        "super_models" to "Модели: %s",
+        "super_compared" to "- Элементов сравнено: %s",
+        "super_agree" to "- Полное согласие моделей: %s (%s%%)",
+        "super_conflicts" to "- Расхождения: %s",
+        "super_profile" to "### Профиль оценок по моделям",
+        "super_note" to "> Элементы с расхождением помечены уровнем «Расхождение»; подробности — в столбце 4.",
+        "merge_disagreement" to "Расхождения: %s",
+        "merge_opinions" to "Мнения моделей:\n%s",
+
+        "msg_open_repo" to "Сначала откройте репозиторий",
+        "msg_enter_url" to "Введите URL GitHub",
+        "msg_configure_provider" to "Настройте хотя бы одного провайдера с моделью и ключом",
+        "msg_error" to "Ошибка: %s"
     )
 
+    // ------------------------------------------------------------------ German
+
     val de: Map<String, String> = mapOf(
-        "app_name" to "Source Code Mapper AI",
         "tab_home" to "Start",
         "tab_repo" to "Repo",
         "tab_report" to "Bericht",
         "tab_settings" to "Einstellungen",
 
-        "home_title" to "Source Code Mapper AI",
         "home_subtitle" to "Öffne ein lokales Repository oder klone eines von GitHub und erstelle eine vollständige 4-Spalten-Karte des Codes.",
         "open_local" to "Lokales Repository öffnen",
         "open_local_desc" to "Ordner über den System-Dialog wählen (nur Lesen).",
@@ -317,9 +492,6 @@ object Strings {
         "or" to "ODER",
 
         "lang_label" to "Berichtssprache",
-        "lang_ru" to "Русский",
-        "lang_de" to "Deutsch",
-        "lang_en" to "English",
 
         "repo_title" to "Repository-Überblick",
         "files" to "Dateien",
@@ -418,7 +590,8 @@ object Strings {
         "kind_composable" to "Composable UI",
 
         "super_report" to "Super-Bericht (Modellvergleich)",
-        "evidence" to "Nachweise / Prüfung",
+        "super_ai_section" to "## Modellvergleich (KI)",
+        "evidence" to "Nachweis",
         "models_opinions" to "Modellmeinungen",
         "confidence" to "Sicherheit",
         "conf_verified" to "Bestätigt",
@@ -432,6 +605,82 @@ object Strings {
         "restore_defaults" to "Standard wiederherstellen",
         "new_provider" to "Neuer OpenAI-kompatibler Anbieter",
         "providers" to "KI-Anbieter",
-        "exclude_docs" to "README / *.md / *.txt und Code-Kommentare ignorieren"
+        "exclude_docs" to "README / *.md / *.txt und Code-Kommentare ignorieren",
+
+        "provider_devhorizon" to "DevHorizon (OpenAI-kompatibel, ohne Schlüssel)",
+        "provider_ollama" to "Ollama Cloud (Schlüssel oder OAuth)",
+        "provider_opencode_go" to "OpenCode Go (sk--Schlüssel)",
+        "provider_opencode_zen" to "OpenCode Zen (sk--Schlüssel)",
+
+        "sd_decl_in" to "Deklaration «%s» in %s",
+        "sd_lifecycle" to "Android-Lifecycle-Callback",
+        "sd_composable" to "@Composable-Funktion (Jetpack Compose)",
+        "sd_function_in" to "Funktion/Methode %s",
+        "sd_property" to "Feld/Eigenschaft",
+        "sd_constant" to "Konstante",
+        "sd_trigger_listener" to "Handler/Abonnement",
+        "sd_import" to "Abhängigkeit: %s",
+        "sd_class_js" to "JavaScript/TypeScript-Klasse",
+        "sd_component" to "Komponente (React/Vue)",
+        "sd_function_js" to "JS/TS-Funktion",
+        "sd_arrow" to "Pfeilfunktion/Callback",
+        "sd_event_listener" to "Event-Handler addEventListener",
+        "sd_dom_id" to "DOM-UI-Element (getElementById)",
+        "sd_dom_query" to "DOM-Selektor",
+        "sd_method_js" to "Objekt-/Klassenmethode",
+        "sd_function_py" to "Python-Funktion",
+        "sd_class_py" to "Python-Klasse",
+        "sd_decorator" to "Dekorator/Handler",
+        "sd_route" to "HTTP-Route %s",
+        "sd_function_go" to "Go-Funktion",
+        "sd_type_go" to "Go-Typ: %s",
+        "sd_function_rs" to "Rust-Funktion",
+        "sd_type_rs" to "Rust-Typ: %s",
+        "sd_type_php" to "PHP-Typ",
+        "sd_function_php" to "PHP-Funktion",
+        "sd_method_rb" to "Ruby-Methode",
+        "sd_type_rb" to "Ruby-Typ",
+        "sd_function_swift" to "Swift-Funktion",
+        "sd_type_swift" to "Swift-Typ",
+        "sd_class_dart" to "Dart/Flutter-Klasse",
+        "sd_method_dart" to "Dart-Methode/Funktion",
+        "sd_function_sh" to "Shell-Funktion",
+        "sd_sql" to "SQL %s",
+        "sd_type_c" to "Typ %s",
+        "sd_function_c" to "Funktion/Methode %s",
+        "sd_android_id" to "UI-Element: android:id",
+        "sd_android_onclick" to "Handler android:onClick",
+        "sd_permission" to "Berechtigung aus dem Manifest",
+        "sd_manifest_component" to "Manifest-Komponente <%s>",
+        "sd_string_res" to "String-Ressource",
+        "sd_resource" to "Ressource <%s>",
+        "sd_html_ui" to "HTML-UI-Element (id/class)",
+        "sd_onclick_inline" to "Inline-Handler onclick",
+        "sd_html_tag" to "HTML-Tag",
+        "sd_raw" to "nicht klassifizierte echte Codezeilen (ohne Kommentare und Leerzeilen)",
+
+        "row_file_summary" to "Datei · %s · %s Zeilen",
+        "row_file_detail" to "Repository-Datei. Sprache: %s. Größe: %s Bytes. Zeilen: %s.",
+        "row_detail" to "Elementtyp: %s. Sprache: %s. Deklaration: %s Zeilenbereich: %s–%s.",
+
+        "ev_file" to "Datei gelesen: %s",
+        "ev_rule" to "%s:%s → Regel «%s» (%s)",
+        "ev_static" to "Element durch statische Analyse gefunden: %s:%s–%s (%s)",
+        "ev_ai_prefix" to "KI: %s",
+
+        "super_title" to "## Super-Bericht: Vergleich von %s Modellen",
+        "super_models" to "Modelle: %s",
+        "super_compared" to "- Verglichene Elemente: %s",
+        "super_agree" to "- Vollständige Übereinstimmung: %s (%s%%)",
+        "super_conflicts" to "- Abweichungen: %s",
+        "super_profile" to "### Bewertungsprofil je Modell",
+        "super_note" to "> Elemente mit Abweichung sind mit «Widerspruch» markiert; Details in Spalte 4.",
+        "merge_disagreement" to "Abweichungen: %s",
+        "merge_opinions" to "Modellmeinungen:\n%s",
+
+        "msg_open_repo" to "Zuerst ein Repository öffnen",
+        "msg_enter_url" to "GitHub-URL eingeben",
+        "msg_configure_provider" to "Mindestens einen Anbieter mit Modell und Schlüssel konfigurieren",
+        "msg_error" to "Fehler: %s"
     )
 }
