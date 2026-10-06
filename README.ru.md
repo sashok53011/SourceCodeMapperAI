@@ -58,7 +58,6 @@ Android-приложение: открывает локальный репози
 
 | Провайдер | Base URL | Модель по умолчанию | Ключ |
 |---|---|---|---|
-| Основной (OpenAI-совместимый) | `https://llm.devhorizon.online/v1` | `gemma4-12b-qat-uncensored-hauhaucs-balanced` | не требуется |
 | Ollama Cloud | `https://ollama.com/v1` | задаётся пользователем | API-ключ или OAuth device flow |
 | OpenCode Go | `https://opencode.ai/zen/go/v1` | `space-bunny-free` | `sk-...` |
 | OpenCode Zen | `https://opencode.ai/zen/v1` | `big-pickle` | `sk-...` |
