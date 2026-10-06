@@ -60,7 +60,6 @@ die Sprache der Modellantworten. Das technische Analyseprotokoll bleibt auf Engl
 
 | Anbieter | Basis-URL | Standardmodell | Schlüssel |
 |---|---|---|---|
-| Primär (OpenAI-kompatibel) | `https://llm.devhorizon.online/v1` | `gemma4-12b-qat-uncensored-hauhaucs-balanced` | nicht erforderlich |
 | Ollama Cloud | `https://ollama.com/v1` | benutzerdefiniert | API-Schlüssel oder OAuth Device Flow |
 | OpenCode Go | `https://opencode.ai/zen/go/v1` | `space-bunny-free` | `sk-...` |
 | OpenCode Zen | `https://opencode.ai/zen/v1` | `big-pickle` | `sk-...` |
