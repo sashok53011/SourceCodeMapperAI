@@ -57,7 +57,6 @@ of the model's answers. The technical analysis journal stays in English (debug i
 
 | Provider | Base URL | Default model | Key |
 |---|---|---|---|
-| Primary (OpenAI-compatible) | `https://llm.devhorizon.online/v1` | `gemma4-12b-qat-uncensored-hauhaucs-balanced` | none required |
 | Ollama Cloud | `https://ollama.com/v1` | user-defined | API key or OAuth device flow |
 | OpenCode Go | `https://opencode.ai/zen/go/v1` | `space-bunny-free` | `sk-...` |
 | OpenCode Zen | `https://opencode.ai/zen/v1` | `big-pickle` | `sk-...` |
